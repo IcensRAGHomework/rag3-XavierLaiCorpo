@@ -68,52 +68,62 @@ def generate_hw02(question, city, store_type, start_date, end_date):
             ]
         }
     )
+    target_similarity = 0.8
+    return filterQueryResult(results, target_similarity)
+    
+def generate_hw03(question, store_name, new_store_name, city, store_type):
+    print(f"question={question}, store_name={store_name}, new_store_name={new_store_name}, city={city}, store_type={store_type}")
 
+    collection = generate_hw01()
+    target_store = collection.get(where={"name": store_name})
+    metadatas = [{**meta, "new_store_name": new_store_name} for meta in target_store.get("metadatas", [])]
+    collection.upsert(ids=target_store.get("ids", []), 
+                      metadatas=metadatas,
+                      documents=target_store.get("documents", []))
+    
+    results = collection.query(
+        query_texts=[question],
+        n_results=10,
+        include=["metadatas", "distances"],
+        where={
+            "$and": [
+                {"type": {"$in": store_type}},
+                {"city": {"$in": city}}
+            ]
+        }
+    )
+    target_similarity = 0.8
+    return filterQueryResult(results, target_similarity)
+
+def filterQueryResult(results, target_similarity):
     filtered_similarity = []
     filtered_store_name = []
-    for index in range(len(results['ids'])):
-        for distance, metadata in zip(results['distances'][index], results['metadatas'][index]):
+    for idx in range(len(results['ids'])):
+        for distance, metadata in zip(results['distances'][idx], results['metadatas'][idx]):
             # the higher the better
             similarity = 1 - distance
             #print(f"{metadata['name']} - {similarity}")
-            if similarity >= 0.8:
+            if similarity >= target_similarity:
+                new_name = metadata.get("new_store_name", "")
+                name = metadata["name"]
+                filtered_store_name.append(new_name if new_name else name)
                 filtered_similarity.append(similarity)
-                filtered_store_name.append(metadata['name'])
 
     filtered_results = sorted(zip(filtered_similarity, filtered_store_name), key=lambda x: x[0], reverse=True)
     sorted_store_names = [name for _, name in filtered_results]
     
     print(sorted_store_names)
     return sorted_store_names
-    
-def generate_hw03(question, store_name, new_store_name, city, store_type):
-    pass
-    
-def demo(question):
-    chroma_client = chromadb.PersistentClient(path=dbpath)
-    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
-        api_key = gpt_emb_config['api_key'],
-        api_base = gpt_emb_config['api_base'],
-        api_type = gpt_emb_config['openai_type'],
-        api_version = gpt_emb_config['api_version'],
-        deployment_id = gpt_emb_config['deployment_name']
-    )
-    collection = chroma_client.get_or_create_collection(
-        name="TRAVEL",
-        metadata={"hnsw:space": "cosine"},
-        embedding_function=openai_ef
-    )
-    
-    return collection
+
 
 if __name__ == "__main__":
-    generate_hw01()
+    #generate_hw01()
     generate_hw02("我想要找有關茶餐點的店家",
                   ["宜蘭縣", "新北市"],
                   ["美食"],
                   datetime.datetime(2024, 4, 1), 
                   datetime.datetime(2024, 5, 1))
-    #generate_hw03("我想要找南投縣的田媽媽餐廳，招牌是蕎麥麵", 
-    #              "耄饕客棧", 
-    #              "田媽媽（耄饕客棧）", 
-    #              ["南投縣"], ["美食"])
+    generate_hw03("我想要找南投縣的田媽媽餐廳，招牌是蕎麥麵", 
+                  "耄饕客棧", 
+                  "田媽媽（耄饕客棧）", 
+                  ["南投縣"], ["美食"])
