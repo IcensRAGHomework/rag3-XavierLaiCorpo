@@ -42,7 +42,7 @@ def generate_hw01():
                 "town": row["Town"],
                 "date": int(datetime.datetime.strptime(row['CreateDate'], '%Y-%m-%d').timestamp())
             }
-            print(f"{idx} {metadata["name"]}")
+            #print(f"{idx} {metadata["name"]}")
             collection.add(
                 ids=[str(idx)],
                 metadatas=[metadata],
@@ -75,4 +75,5 @@ def demo(question):
     
     return collection
 
-#generate_hw01()
+if __name__ == "__main__":
+    generate_hw01()
